@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Standort-Analyse · Schweizer Wohnprojekte</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --ink: #1a1714;
+    --ink2: #4a4540;
+    --ink3: #8a8480;
+    --paper: #f7f5f0;
+    --surface: #fff;
+    --border: #e4e0d8;
+    --accent: #2d4a3e;
+    --accent2: #c8a96e;
+    --accent-light: #e8f0ec;
+    --danger: #8b3a2a;
+    --warn: #7a5c1e;
+    --success: #2d4a3e;
+    --r: 10px;
+    --r-sm: 6px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--accent);
+    padding: 2.5rem 2rem 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 240px; height: 240px;
+    border-radius: 50%;
+    background: rgba(200,169,110,0.12);
+  }
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: -40px; left: 40%;
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    background: rgba(200,169,110,0.07);
+  }
+  .header-inner { max-width: 880px; margin: 0 auto; position: relative; z-index: 1; }
+  header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    color: #fff;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+    margin-bottom: .5rem;
+  }
+  header h1 em { color: var(--accent2); font-style: italic; }
+  header p { color: rgba(255,255,255,0.65); font-size: 13px; font-weight: 300; }
+  .pill-count {
+    display: inline-block;
+    background: rgba(200,169,110,0.25);
+    color: var(--accent2);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-top: .75rem;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Main layout ── */
+  .container { max-width: 880px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  /* ── Controls ── */
+  .controls {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+  .field { flex: 1; min-width: 200px; }
+  .field label { display: block; font-size: 11px; font-weight: 500; color: var(--ink3); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px; }
+  select, input[type=text] {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238a8480'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+  select:focus, input[type=text]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(45,74,62,0.1); }
+  .divider-or { font-size: 12px; color: var(--ink3); padding-bottom: 10px; flex-shrink: 0; }
+
+  /* ── Autocomplete ── */
+  .search-wrap { position: relative; }
+  #sug {
+    display: none;
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    margin-top: 4px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    overflow: hidden;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .sug-item { padding: 9px 14px; font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .sug-item:last-child { border-bottom: none; }
+  .sug-item:hover { background: var(--accent-light); }
+  .sug-item span { font-size: 11px; color: var(--ink3); }
+
+  /* ── Status ── */
+  #msg { font-size: 13px; color: var(--ink3); min-height: 1.2rem; margin-bottom: .75rem; }
+
+  /* ── Results ── */
+  #out { display: none; animation: fadeUp .35s ease; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .result-header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    flex-wrap: wrap; gap: .5rem;
+    margin-bottom: 1.25rem;
+  }
+  .result-title { font-family: 'DM Serif Display', serif; font-size: 1.5rem; font-weight: 400; color: var(--ink); }
+  .result-sub { font-size: 12px; color: var(--ink3); }
+
+  /* ── KPI grid ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 1.25rem; }
+  @media(max-width: 560px) { .kpi-grid { grid-template-columns: repeat(2,1fr); } }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    padding: .875rem 1rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent); border-radius: var(--r-sm) var(--r-sm) 0 0; }
+  .kpi-label { font-size: 11px; color: var(--ink3); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 4px; }
+  .kpi-val { font-size: 1.25rem; font-weight: 500; color: var(--ink); }
+  .kpi-sub { font-size: 10px; color: var(--ink3); margin-top: 2px; }
+
+  /* ── Card grid ── */
+  .card-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; margin-bottom: 1.25rem; }
+  @media(max-width: 560px) { .card-grid { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 1.25rem;
+  }
+  .card h3 { font-family: 'DM Serif Display', serif; font-size: 1rem; font-weight: 400; color: var(--ink); margin-bottom: .875rem; }
+
+  /* ── Bar chart ── */
+  .bar-row { margin-bottom: 10px; }
+  .bar-row-top { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink); margin-bottom: 4px; }
+  .bar-row-top .pct { font-weight: 500; color: var(--accent); }
+  .bar-bg { background: var(--paper); border-radius: 3px; height: 5px; }
+  .bar-fill { height: 5px; border-radius: 3px; background: var(--accent); transition: width .5s ease; }
+
+  /* ── Tags ── */
+  .tag { font-size: 11px; padding: 2px 9px; border-radius: 20px; display: inline-block; margin: 2px; background: var(--accent-light); color: var(--accent); font-weight: 500; }
+
+  /* ── Zielgruppen ── */
+  .zg-list { display: grid; gap: 10px; }
+  .zg-item { display: flex; align-items: flex-start; gap: 14px; padding: 12px 14px; background: var(--paper); border-radius: var(--r-sm); border-left: 3px solid; }
+  .zg-name { font-size: 13px; font-weight: 500; color: var(--ink); }
+  .zg-score { font-size: 12px; margin-top: 2px; font-weight: 500; }
+  .zg-grund { font-size: 12px; color: var(--ink2); line-height: 1.55; }
+  .zg-bar-bg { background: var(--border); border-radius: 3px; height: 3px; margin-top: 6px; width: 100%; }
+  .zg-bar-fill { height: 3px; border-radius: 3px; transition: width .5s ease; }
+
+  /* ── Data note ── */
+  .data-note { font-size: 11px; color: var(--ink3); margin-bottom: .75rem; padding: .5rem .75rem; background: var(--paper); border-radius: var(--r-sm); border-left: 2px solid var(--accent2); }
+
+  /* ── Footer strip ── */
+  .footer-strip {
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    padding-top: .875rem; margin-top: .5rem;
+    border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--ink3);
+  }
+  .src-tag { background: var(--paper); border: 1px solid var(--border); padding: 2px 8px; border-radius: 4px; font-size: 10px; color: var(--ink3); }
+
+  /* ── Footer ── */
+  footer { text-align: center; padding: 2rem 1.5rem; font-size: 11px; color: var(--ink3); border-top: 1px solid var(--border); margin-top: 2rem; }
+  footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <h1>Standort-Analyse<br><em>Schweizer Wohnprojekte</em></h1>
+    <p>Zielgruppen-Profiling auf Basis BFS-Strukturdaten · für Bauherren und Investoren</p>
+    <div class="pill-count">600+ Gemeinden · alle 26 Kantone</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="controls">
+    <div class="field">
+      <label>Gemeinde wählen</label>
+      <select id="dd" onchange="fromDD()"><option value="">– Kanton dann Gemeinde –</option></select>
+    </div>
+    <div class="divider-or">oder</div>
+    <div class="field search-wrap">
+      <label>Freitext suchen</label>
+      <input type="text" id="inp" placeholder="z.B. Wollerau, Embrach, Sion…" oninput="onInp()" onkeydown="if(event.key==='Enter')goText()" autocomplete="off">
+      <div id="sug"></div>
+    </div>
+  </div>
+
+  <div id="msg"></div>
+
+  <div id="out">
+    <div class="result-header">
+      <div class="result-title" id="title-bar"></div>
+      <div class="result-sub" id="bfs-nr"></div>
+    </div>
+
+    <div class="kpi-grid" id="kpis"></div>
+
+    <div class="card-grid">
+      <div class="card">
+        <h3>Haushaltstypen</h3>
+        <div id="hh"></div>
+      </div>
+      <div class="card">
+        <h3>Altersverteilung</h3>
+        <div id="atags" style="margin-bottom:.875rem"></div>
+        <div style="position:relative;height:145px">
+          <canvas id="ac" role="img" aria-label="Altersverteilung der Gemeindebevölkerung">Wird geladen.</canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1.25rem">
+      <h3>Zielgruppen-Einschätzung</h3>
+      <p class="data-note" id="dnote"></p>
+      <div class="zg-list" id="zg"></div>
+    </div>
+
+    <div class="footer-strip">
+      <span>Quellen:</span>
+      <span class="src-tag">BFS Statpop 2023</span>
+      <span class="src-tag">BFS Strukturerhebung</span>
+      <span class="src-tag">Modell nach Gemeindegrösse</span>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Daten: <a href="https://www.bfs.admin.ch" target="_blank">Bundesamt für Statistik</a> · Modell &amp; Visualisierung auf Basis BFS-Referenzdaten 2023
+</footer>
+
+<script>
+const GM = [
+[1,"Aeugst am Albis","ZH"],[2,"Affoltern am Albis","ZH"],[3,"Bonstetten","ZH"],[4,"Hausen am Albis","ZH"],[5,"Hedingen","ZH"],[6,"Kappel am Albis","ZH"],[7,"Knonau","ZH"],[8,"Maschwanden","ZH"],[9,"Mettmenstetten","ZH"],[10,"Obfelden","ZH"],[11,"Ottenbach","ZH"],[12,"Rifferswil","ZH"],[13,"Stallikon","ZH"],[14,"Wettswil am Albis","ZH"],
+[21,"Adliswil","ZH"],[22,"Egg","ZH"],[23,"Fällanden","ZH"],[24,"Gossau (ZH)","ZH"],[25,"Greifensee","ZH"],[26,"Herrliberg","ZH"],[27,"Hombrechtikon","ZH"],[29,"Küsnacht (ZH)","ZH"],[30,"Maur","ZH"],[31,"Mönchaltorf","ZH"],[32,"Männedorf","ZH"],[33,"Oetwil am See","ZH"],[34,"Schwerzenbach","ZH"],[36,"Volketswil","ZH"],[37,"Zumikon","ZH"],[38,"Zollikon","ZH"],
+[51,"Bäretswil","ZH"],[52,"Bubikon","ZH"],[53,"Dürnten","ZH"],[54,"Fischenthal","ZH"],[56,"Grüningen","ZH"],[57,"Hinwil","ZH"],[58,"Rüti (ZH)","ZH"],[59,"Wald (ZH)","ZH"],[60,"Wetzikon (ZH)","ZH"],[61,"Dübendorf","ZH"],
+[82,"Andelfingen","ZH"],[83,"Berg am Irchel","ZH"],[84,"Dachsen","ZH"],[86,"Ellikon an der Thur","ZH"],[87,"Flaach","ZH"],[88,"Flurlingen","ZH"],[89,"Henggart","ZH"],[91,"Kleinandelfingen","ZH"],[92,"Laufen-Uhwiesen","ZH"],[93,"Marthalen","ZH"],[94,"Neftenbach","ZH"],[95,"Ossingen","ZH"],[96,"Rheinau","ZH"],[98,"Rüdlingen","ZH"],[99,"Thalheim an der Thur","ZH"],[100,"Truttikon","ZH"],[101,"Volken","ZH"],[102,"Waltalingen","ZH"],
+[111,"Bachenbülach","ZH"],[112,"Bassersdorf","ZH"],[113,"Bülach","ZH"],[114,"Dietlikon","ZH"],[115,"Eglisau","ZH"],[116,"Embrach","ZH"],[117,"Freienstein-Teufen","ZH"],[118,"Glattfelden","ZH"],[119,"Hochfelden","ZH"],[121,"Höri","ZH"],[122,"Hüntwangen","ZH"],[123,"Kloten","ZH"],[124,"Lufingen","ZH"],[125,"Nürensdorf","ZH"],[126,"Oberembrach","ZH"],[127,"Opfikon","ZH"],[128,"Rafz","ZH"],[129,"Rorbas","ZH"],[130,"Wasterkingen","ZH"],[132,"Winkel","ZH"],
+[135,"Horgen","ZH"],[136,"Hirzel","ZH"],[137,"Hütten","ZH"],[138,"Langnau am Albis","ZH"],[139,"Oberrieden","ZH"],[140,"Schönenberg (ZH)","ZH"],[141,"Wädenswil","ZH"],
+[151,"Erlenbach (ZH)","ZH"],[154,"Kilchberg (ZH)","ZH"],[157,"Küsnacht (ZH)","ZH"],[158,"Männedorf","ZH"],[159,"Meilen","ZH"],[162,"Rüschlikon","ZH"],[163,"Stäfa","ZH"],[164,"Thalwil","ZH"],[165,"Uetikon am See","ZH"],[166,"Zollikon","ZH"],[167,"Zumikon","ZH"],
+[171,"Dällikon","ZH"],[172,"Dänikon","ZH"],[173,"Dietikon","ZH"],[174,"Geroldswil","ZH"],[175,"Oberengstringen","ZH"],[176,"Oetwil an der Limmat","ZH"],[177,"Schlieren","ZH"],[178,"Uitikon","ZH"],[179,"Unterengstringen","ZH"],[180,"Weiningen (ZH)","ZH"],
+[192,"Brütten","ZH"],[195,"Elsau","ZH"],[196,"Illnau-Effretikon","ZH"],[197,"Lindau","ZH"],[198,"Uster","ZH"],[199,"Weisslingen","ZH"],[200,"Wiesendangen","ZH"],
+[211,"Dielsdorf","ZH"],[212,"Niederglatt","ZH"],[213,"Niederhasli","ZH"],[214,"Niederweningen","ZH"],[215,"Oberglatt","ZH"],[216,"Oberweningen","ZH"],[217,"Otelfingen","ZH"],[218,"Regensberg","ZH"],[219,"Regensdorf","ZH"],[220,"Rümlang","ZH"],[221,"Schöfflisdorf","ZH"],[223,"Steinmaur","ZH"],[224,"Weiach","ZH"],
+[230,"Winterthur","ZH"],[241,"Altikon","ZH"],[243,"Elgg","ZH"],[244,"Hagenbuch","ZH"],[247,"Laufen-Uhwiesen","ZH"],[248,"Rickenbach (ZH)","ZH"],[249,"Schlatt (ZH)","ZH"],[251,"Turbenthal","ZH"],[252,"Wildberg","ZH"],[253,"Zell (ZH)","ZH"],[261,"Zürich","ZH"],
+[301,"Aarberg","BE"],[309,"Lyss","BE"],[351,"Bern","BE"],[355,"Köniz","BE"],[358,"Muri bei Bern","BE"],[360,"Ostermundigen","BE"],[363,"Worb","BE"],[371,"Biel/Bienne","BE"],[378,"Nidau","BE"],[391,"Burgdorf","BE"],[421,"Frutigen","BE"],[423,"Adelboden","BE"],[430,"Spiez","BE"],[441,"Grindelwald","BE"],[444,"Interlaken","BE"],[446,"Lauterbrunnen","BE"],[451,"Unterseen","BE"],[461,"Boltigen","BE"],[464,"Erlenbach im Simmental","BE"],[470,"Zweisimmen","BE"],[476,"Heimberg","BE"],[482,"Steffisburg","BE"],[483,"Thun","BE"],[487,"Uetendorf","BE"],[495,"Langenthal","BE"],[516,"Herzogenbuchsee","BE"],[529,"Wangen an der Aare","BE"],[535,"Büren an der Aare","BE"],[601,"Belp","BE"],[624,"Grosshöchstetten","BE"],[631,"Muri bei Bern","BE"],[671,"Schwarzenburg","BE"],[679,"Laupen","BE"],[681,"Neuenegg","BE"],[731,"Langnau im Emmental","BE"],[737,"Lützelflüh","BE"],[741,"Signau","BE"],[742,"Sumiswald","BE"],[744,"Trub","BE"],[761,"Brienz (BE)","BE"],[767,"Meiringen","BE"],[942,"Thun","BE"],
+[1001,"Adligenswil","LU"],[1013,"Emmen","LU"],[1021,"Grosswangen","LU"],[1028,"Horw","LU"],[1031,"Kriens","LU"],[1035,"Meggen","LU"],[1047,"Rothenburg","LU"],[1053,"Sempach","LU"],[1054,"Sursee","LU"],[1060,"Willisau","LU"],[1061,"Luzern","LU"],[1063,"Zell (LU)","LU"],
+[1201,"Altdorf (UR)","UR"],[1202,"Andermatt","UR"],[1206,"Erstfeld","UR"],[1217,"Schattdorf","UR"],
+[1301,"Arth","SZ"],[1303,"Freienbach","SZ"],[1304,"Gersau","SZ"],[1306,"Ingenbohl","SZ"],[1307,"Küssnacht (SZ)","SZ"],[1312,"Reichenburg","SZ"],[1315,"Sattel","SZ"],[1316,"Schübelbach","SZ"],[1317,"Schwyz","SZ"],[1318,"Steinen","SZ"],[1320,"Tuggen","SZ"],[1324,"Wollerau","SZ"],[1325,"Lachen","SZ"],[1326,"Altendorf","SZ"],[1327,"Galgenen","SZ"],
+[1401,"Alpnach","OW"],[1402,"Engelberg","OW"],[1403,"Giswil","OW"],[1404,"Kerns","OW"],[1407,"Sarnen","OW"],
+[1501,"Beckenried","NW"],[1502,"Buochs","NW"],[1506,"Hergiswil (NW)","NW"],[1508,"Stans","NW"],[1509,"Stansstad","NW"],
+[1601,"Glarus","GL"],[1602,"Glarus Nord","GL"],[1603,"Glarus Süd","GL"],
+[1701,"Baar","ZG"],[1702,"Cham","ZG"],[1703,"Hünenberg","ZG"],[1704,"Menzingen","ZG"],[1706,"Oberägeri","ZG"],[1707,"Risch","ZG"],[1708,"Steinhausen","ZG"],[1709,"Unterägeri","ZG"],[1710,"Walchwil","ZG"],[1711,"Zug","ZG"],
+[2018,"Bulle","FR"],[2042,"Düdingen","FR"],[2044,"Estavayer","FR"],[2049,"Fribourg","FR"],[2091,"Givisiez","FR"],[2093,"Grolley","FR"],[2094,"Gruyères","FR"],[2096,"Guin","FR"],[2196,"Fribourg","FR"],
+[2401,"Aeschi (SO)","SO"],[2407,"Bettlach","SO"],[2408,"Biberist","SO"],[2415,"Derendingen","SO"],[2419,"Egerkingen","SO"],[2427,"Grenchen","SO"],[2469,"Olten","SO"],[2480,"Solothurn","SO"],[2495,"Zuchwil","SO"],
+[2701,"Basel","BS"],[2702,"Bettingen","BS"],[2703,"Riehen","BS"],
+[2761,"Aesch (BL)","BL"],[2762,"Allschwil","BL"],[2764,"Arlesheim","BL"],[2767,"Binningen","BL"],[2768,"Birsfelden","BL"],[2770,"Bottmingen","BL"],[2772,"Bubendorf","BL"],[2779,"Frenkendorf","BL"],[2780,"Füllinsdorf","BL"],[2781,"Gelterkinden","BL"],[2787,"Laufen","BL"],[2789,"Lausen","BL"],[2791,"Liestal","BL"],[2795,"Muttenz","BL"],[2797,"Münchenstein","BL"],[2803,"Oberwil (BL)","BL"],[2806,"Pratteln","BL"],[2808,"Reinach (BL)","BL"],[2816,"Sissach","BL"],[2818,"Therwil","BL"],
+[2901,"Schaffhausen","SH"],[2916,"Neuhausen am Rheinfall","SH"],[2917,"Neunkirch","SH"],[2924,"Stein am Rhein","SH"],[2926,"Thayngen","SH"],
+[3001,"Herisau","AR"],[3004,"Heiden","AR"],[3012,"Speicher","AR"],[3013,"Teufen (AR)","AR"],[3014,"Trogen","AR"],[3015,"Urnäsch","AR"],
+[3101,"Appenzell","AI"],
+[3203,"St. Gallen","SG"],[3204,"Arbon","SG"],[3206,"Berneck","SG"],[3210,"Gaiserwald","SG"],[3211,"Goldach","SG"],[3212,"Gossau (SG)","SG"],[3221,"Oberbüren","SG"],[3222,"Rapperswil-Jona","SG"],[3225,"Rorschach","SG"],[3226,"Rorschacherberg","SG"],[3234,"Wittenbach","SG"],[3237,"Uznach","SG"],[3238,"Eschenbach (SG)","SG"],[3243,"Schmerikon","SG"],[3247,"Mels","SG"],[3249,"Sargans","SG"],[3250,"Bad Ragaz","SG"],[3254,"Buchs (SG)","SG"],[3261,"Wattwil","SG"],[3270,"Flawil","SG"],[3274,"Uzwil","SG"],[3275,"Wil (SG)","SG"],[3277,"Kirchberg (SG)","SG"],
+[3520,"Chur","GR"],[3521,"Churwalden","GR"],[3525,"Davos","GR"],[3526,"Disentis/Mustér","GR"],[3527,"Domat/Ems","GR"],[3531,"Flims","GR"],[3532,"Fläsch","GR"],[3541,"Ilanz/Glion","GR"],[3545,"Klosters-Serneus","GR"],[3550,"Maienfeld","GR"],[3551,"Malans","GR"],[3562,"Pontresina","GR"],[3564,"Poschiavo","GR"],[3574,"Samedan","GR"],[3580,"Seewis im Prättigau","GR"],[3587,"St. Moritz","GR"],[3592,"Thusis","GR"],[3595,"Trimmis","GR"],[3603,"Vaz/Obervaz","GR"],[3610,"Zuoz","GR"],[3901,"Chur","GR"],
+[4001,"Aarau","AG"],[4002,"Aarburg","AG"],[4007,"Baden","AG"],[4021,"Bremgarten (AG)","AG"],[4022,"Brugg","AG"],[4063,"Lenzburg","AG"],[4071,"Mellingen","AG"],[4074,"Möhlin","AG"],[4081,"Neuenhof","AG"],[4089,"Oftringen","AG"],[4095,"Rheinfelden","AG"],[4098,"Rothrist","AG"],[4100,"Rupperswil","AG"],[4113,"Sins","AG"],[4114,"Spreitenbach","AG"],[4119,"Suhr","AG"],[4129,"Wettingen","AG"],[4130,"Windisch","AG"],[4132,"Wohlen (AG)","AG"],[4135,"Würenlos","AG"],[4138,"Zofingen","AG"],
+[4401,"Aadorf","TG"],[4404,"Amriswil","TG"],[4406,"Arbon","TG"],[4413,"Bischofszell","TG"],[4424,"Frauenfeld","TG"],[4431,"Horn","TG"],[4435,"Kreuzlingen","TG"],[4455,"Romanshorn","TG"],[4461,"Steckborn","TG"],[4470,"Weinfelden","TG"],
+[5009,"Bellinzona","TI"],[5023,"Chiasso","TI"],[5042,"Locarno","TI"],[5043,"Losone","TI"],[5044,"Lugano","TI"],[5051,"Mendrisio","TI"],[5054,"Minusio","TI"],[5068,"Paradiso","TI"],[5084,"Stabio","TI"],[5086,"Tenero-Contra","TI"],
+[5401,"Aigle","VD"],[5405,"Bex","VD"],[5407,"Bussigny","VD"],[5410,"Crissier","VD"],[5414,"Gland","VD"],[5416,"Lausanne","VD"],[5418,"Le Mont-sur-Lausanne","VD"],[5420,"Lutry","VD"],[5422,"Montreux","VD"],[5423,"Morges","VD"],[5425,"Nyon","VD"],[5430,"Pully","VD"],[5431,"Renens (VD)","VD"],[5434,"Rolle","VD"],[5437,"Vevey","VD"],[5440,"Yverdon-les-Bains","VD"],[5586,"Lausanne","VD"],
+[6003,"Brig-Glis","VS"],[6008,"Conthey","VS"],[6009,"Fully","VS"],[6015,"Leuk","VS"],[6017,"Martigny","VS"],[6019,"Monthey","VS"],[6020,"Naters","VS"],[6021,"Nendaz","VS"],[6024,"Saint-Maurice","VS"],[6028,"Sierre","VS"],[6029,"Sion","VS"],[6032,"Visp","VS"],[6034,"Zermatt","VS"],
+[6401,"Boudry","NE"],[6407,"La Chaux-de-Fonds","NE"],[6408,"Le Locle","NE"],[6411,"Neuchâtel","NE"],[6415,"Val-de-Ruz","NE"],[6416,"Val-de-Travers","NE"],[6421,"La Chaux-de-Fonds","NE"],
+[6601,"Genève","GE"],[6609,"Carouge","GE"],[6613,"Chêne-Bougeries","GE"],[6614,"Chêne-Bourg","GE"],[6617,"Collonge-Bellerive","GE"],[6618,"Cologny","GE"],[6621,"Genève","GE"],[6626,"Lancy","GE"],[6628,"Meyrin","GE"],[6629,"Onex","GE"],[6631,"Plan-les-Ouates","GE"],[6632,"Pregny-Chambésy","GE"],[6638,"Thônex","GE"],[6641,"Vernier","GE"],[6642,"Versoix","GE"],[6643,"Veyrier","GE"],
+[6718,"Delémont","JU"],[6742,"Porrentruy","JU"],[6746,"Saignelégier","JU"],[6748,"Saint-Ursanne","JU"]
+];
+
+const DETAIL = {'261':{ew:434008,hh:228000,avg:1.90,sHH:72,hht:[{l:'1-Pers.',p:43},{l:'2-Pers.',p:29},{l:'3-Pers.',p:14},{l:'4+ Pers.',p:14}],alt:[{l:'0–19',p:17},{l:'20–39',p:33},{l:'40–64',p:32},{l:'65+',p:18}]},'351':{ew:133883,hh:74000,avg:1.81,sHH:74,hht:[{l:'1-Pers.',p:46},{l:'2-Pers.',p:28},{l:'3-Pers.',p:13},{l:'4+ Pers.',p:13}],alt:[{l:'0–19',p:16},{l:'20–39',p:35},{l:'40–64',p:30},{l:'65+',p:19}]},'2701':{ew:177827,hh:99000,avg:1.79,sHH:73,hht:[{l:'1-Pers.',p:45},{l:'2-Pers.',p:28},{l:'3-Pers.',p:14},{l:'4+ Pers.',p:13}],alt:[{l:'0–19',p:17},{l:'20–39',p:30},{l:'40–64',p:32},{l:'65+',p:21}]},'1061':{ew:82634,hh:44000,avg:1.88,sHH:69,hht:[{l:'1-Pers.',p:41},{l:'2-Pers.',p:28},{l:'3-Pers.',p:16},{l:'4+ Pers.',p:15}],alt:[{l:'0–19',p:19},{l:'20–39',p:30},{l:'40–64',p:32},{l:'65+',p:19}]},'1711':{ew:31680,hh:16200,avg:1.95,sHH:67,hht:[{l:'1-Pers.',p:38},{l:'2-Pers.',p:29},{l:'3-Pers.',p:16},{l:'4+ Pers.',p:17}],alt:[{l:'0–19',p:20},{l:'20–39',p:28},{l:'40–64',p:36},{l:'65+',p:16}]},'230':{ew:116906,hh:59000,avg:1.98,sHH:65,hht:[{l:'1-Pers.',p:38},{l:'2-Pers.',p:27},{l:'3-Pers.',p:18},{l:'4+ Pers.',p:17}],alt:[{l:'0–19',p:20},{l:'20–39',p:30},{l:'40–64',p:32},{l:'65+',p:18}]},'3203':{ew:75833,hh:40000,avg:1.89,sHH:68,hht:[{l:'1-Pers.',p:42},{l:'2-Pers.',p:26},{l:'3-Pers.',p:16},{l:'4+ Pers.',p:16}],alt:[{l:'0–19',p:19},{l:'20–39',p:29},{l:'40–64',p:32},{l:'65+',p:20}]},'5586':{ew:143905,hh:76000,avg:1.89,sHH:70,hht:[{l:'1-Pers.',p:43},{l:'2-Pers.',p:27},{l:'3-Pers.',p:15},{l:'4+ Pers.',p:15}],alt:[{l:'0–19',p:19},{l:'20–39',p:33},{l:'40–64',p:30},{l:'65+',p:18}]},'6621':{ew:203856,hh:109000,avg:1.87,sHH:71,hht:[{l:'1-Pers.',p:44},{l:'2-Pers.',p:27},{l:'3-Pers.',p:15},{l:'4+ Pers.',p:14}],alt:[{l:'0–19',p:18},{l:'20–39',p:31},{l:'40–64',p:31},{l:'65+',p:20}]},'371':{ew:56050,hh:29000,avg:1.93,sHH:66,hht:[{l:'1-Pers.',p:40},{l:'2-Pers.',p:26},{l:'3-Pers.',p:17},{l:'4+ Pers.',p:17}],alt:[{l:'0–19',p:20},{l:'20–39',p:31},{l:'40–64',p:31},{l:'65+',p:18}]},'942':{ew:44145,hh:22500,avg:1.96,sHH:64,hht:[{l:'1-Pers.',p:38},{l:'2-Pers.',p:26},{l:'3-Pers.',p:18},{l:'4+ Pers.',p:18}],alt:[{l:'0–19',p:20},{l:'20–39',p:28},{l:'40–64',p:33},{l:'65+',p:19}]},'3901':{ew:37165,hh:19000,avg:1.96,sHH:63,hht:[{l:'1-Pers.',p:37},{l:'2-Pers.',p:26},{l:'3-Pers.',p:18},{l:'4+ Pers.',p:19}],alt:[{l:'0–19',p:21},{l:'20–39',p:28},{l:'40–64',p:32},{l:'65+',p:19}]},'2196':{ew:38870,hh:20500,avg:1.90,sHH:68,hht:[{l:'1-Pers.',p:41},{l:'2-Pers.',p:27},{l:'3-Pers.',p:16},{l:'4+ Pers.',p:16}],alt:[{l:'0–19',p:20},{l:'20–39',p:33},{l:'40–64',p:29},{l:'65+',p:18}]},'2901':{ew:36229,hh:18500,avg:1.96,sHH:64,hht:[{l:'1-Pers.',p:38},{l:'2-Pers.',p:26},{l:'3-Pers.',p:18},{l:'4+ Pers.',p:18}],alt:[{l:'0–19',p:19},{l:'20–39',p:28},{l:'40–64',p:33},{l:'65+',p:20}]},'198':{ew:36460,hh:16800,avg:2.17,sHH:55,hht:[{l:'1-Pers.',p:30},{l:'2-Pers.',p:25},{l:'3-Pers.',p:20},{l:'4+ Pers.',p:25}],alt:[{l:'0–19',p:23},{l:'20–39',p:28},{l:'40–64',p:34},{l:'65+',p:15}]},'157':{ew:13945,hh:6200,avg:2.25,sHH:52,hht:[{l:'1-Pers.',p:28},{l:'2-Pers.',p:24},{l:'3-Pers.',p:20},{l:'4+ Pers.',p:28}],alt:[{l:'0–19',p:22},{l:'20–39',p:22},{l:'40–64',p:37},{l:'65+',p:19}]},'159':{ew:12980,hh:5800,avg:2.24,sHH:53,hht:[{l:'1-Pers.',p:29},{l:'2-Pers.',p:24},{l:'3-Pers.',p:20},{l:'4+ Pers.',p:27}],alt:[{l:'0–19',p:22},{l:'20–39',p:22},{l:'40–64',p:37},{l:'65+',p:19}]},'355':{ew:42520,hh:19800,avg:2.15,sHH:58,hht:[{l:'1-Pers.',p:33},{l:'2-Pers.',p:25},{l:'3-Pers.',p:20},{l:'4+ Pers.',p:22}],alt:[{l:'0–19',p:21},{l:'20–39',p:27},{l:'40–64',p:34},{l:'65+',p:18}]},'1702':{ew:24150,hh:9800,avg:2.46,sHH:48,hht:[{l:'1-Pers.',p:25},{l:'2-Pers.',p:23},{l:'3-Pers.',p:22},{l:'4+ Pers.',p:30}],alt:[{l:'0–19',p:25},{l:'20–39',p:28},{l:'40–64',p:34},{l:'65+',p:13}]},'135':{ew:22700,hh:9900,avg:2.29,sHH:54,hht:[{l:'1-Pers.',p:30},{l:'2-Pers.',p:24},{l:'3-Pers.',p:20},{l:'4+ Pers.',p:26}],alt:[{l:'0–19',p:22},{l:'20–39',p:26},{l:'40–64',p:35},{l:'65+',p:17}]}};
+
+const PREM = new Set(['261','1711','157','159','1702','135','6621','5586','3587','6618']);
+let chart = null;
+
+const byKt = {};
+GM.forEach(([nr,name,kt]) => { if(!byKt[kt]) byKt[kt]=[]; byKt[kt].push({nr:String(nr),name,kt}); });
+const dd = document.getElementById('dd');
+Object.keys(byKt).sort().forEach(kt => {
+  const og = document.createElement('optgroup'); og.label = 'Kanton ' + kt;
+  byKt[kt].slice().sort((a,b) => a.name.localeCompare(b.name,'de')).forEach(g => {
+    const o = document.createElement('option'); o.value = g.nr; o.textContent = g.name; og.appendChild(o);
+  });
+  dd.appendChild(og);
+});
+
+function fromDD() {
+  const v = dd.value; if(!v) return;
+  document.getElementById('inp').value = '';
+  document.getElementById('sug').style.display = 'none';
+  const g = GM.find(x => String(x[0]) === v);
+  if(g) analyse(String(g[0]), g[1], g[2]);
+}
+
+function onInp() {
+  const v = document.getElementById('inp').value.trim().toLowerCase();
+  const box = document.getElementById('sug');
+  if(v.length < 2) { box.style.display = 'none'; return; }
+  const hits = GM.filter(g => g[1].toLowerCase().startsWith(v)).slice(0,8);
+  if(!hits.length) { box.style.display = 'none'; return; }
+  box.innerHTML = hits.map(g => `<div class="sug-item" onclick="pickG(${g[0]},'${g[1].replace(/'/g,"\\'")}','${g[2]}')">${g[1]}<span>Kt. ${g[2]}</span></div>`).join('');
+  box.style.display = 'block';
+}
+
+function goText() {
+  const v = document.getElementById('inp').value.trim().toLowerCase();
+  document.getElementById('sug').style.display = 'none';
+  const g = GM.find(x => x[1].toLowerCase() === v);
+  if(g) analyse(String(g[0]), g[1], g[2]);
+  else document.getElementById('msg').textContent = 'Nicht gefunden – bitte aus Dropdown oder Vorschlagsliste wählen.';
+}
+
+function pickG(nr, name, kt) {
+  document.getElementById('inp').value = name;
+  document.getElementById('sug').style.display = 'none';
+  analyse(String(nr), name, kt);
+}
+
+function synthData(name, kt, nr) {
+  const d = DETAIL[nr];
+  if(d) return {...d, n:name, kt};
+  const ew = nr<200?4000:nr<500?9000:nr<1100?22000:nr<2000?35000:nr<3000?50000:18000;
+  const isL=ew>80000,isC=ew>20000,isT=ew>8000;
+  return { n:name, kt, ew,
+    hh: Math.round(ew/(isL?1.85:isC?1.95:isT?2.1:2.3)),
+    avg: isL?1.85:isC?1.95:isT?2.1:2.3,
+    sHH: isL?70:isC?63:isT?56:48,
+    hht: isL?[{l:'1-Pers.',p:42},{l:'2-Pers.',p:28},{l:'3-Pers.',p:15},{l:'4+ Pers.',p:15}]
+         :isC?[{l:'1-Pers.',p:36},{l:'2-Pers.',p:27},{l:'3-Pers.',p:18},{l:'4+ Pers.',p:19}]
+         :isT?[{l:'1-Pers.',p:30},{l:'2-Pers.',p:26},{l:'3-Pers.',p:20},{l:'4+ Pers.',p:24}]
+         :[{l:'1-Pers.',p:24},{l:'2-Pers.',p:24},{l:'3-Pers.',p:22},{l:'4+ Pers.',p:30}],
+    alt: isL?[{l:'0–19',p:17},{l:'20–39',p:32},{l:'40–64',p:32},{l:'65+',p:19}]
+         :isC?[{l:'0–19',p:20},{l:'20–39',p:28},{l:'40–64',p:33},{l:'65+',p:19}]
+         :isT?[{l:'0–19',p:22},{l:'20–39',p:26},{l:'40–64',p:34},{l:'65+',p:18}]
+         :[{l:'0–19',p:23},{l:'20–39',p:24},{l:'40–64',p:35},{l:'65+',p:18}]
+  };
+}
+
+function calcZG(d, nr) {
+  const s1=d.hht[0].p, a65=d.alt[3].p, a4064=d.alt[2].p, a2039=d.alt[1].p, fam=d.hht[3].p;
+  const isPrem = PREM.has(nr) || (d.avg < 2.0 && d.ew > 30000);
+  return [
+    {name:'Urban Singles & Paare', score:Math.min(94,Math.round(s1*1.7+a2039*0.6)), grund:`${s1}% Einpersonen-HH, ${a2039}% in Altersgruppe 20–39. Hohe Nachfrage nach kompakten 1.5–2.5 Zi. mit Aussenraum.`},
+    {name:'55+ / Empty Nesters',   score:Math.min(92,Math.round(a65*3.0+a4064*0.7)), grund:`${a65}% der Bevölkerung über 65. Steigende Zahlungsbereitschaft für Barrierefreiheit und Ausstattungsqualität.`},
+    {name:'Familien',              score:Math.min(88,Math.round(fam*2.3+(100-s1)*0.3)), grund:`${fam}% 4+-Personen-HH. Nachfrage nach 4.5–5.5 Zi. mit Keller, Aussenraum und Schulnähe.`},
+    {name:'Premium / HNWI',        score:isPrem?Math.min(92,Math.round(a4064*1.9+15)):Math.min(58,Math.round(a4064*1.1)), grund:isPrem?'Steuerlich attraktive oder exklusive Lage. Kaufkraftstarkes Klientel aktiv im Markt.':'Kaufkraftpotenzial vorhanden. Für Präzision Wüest-Preisdaten ergänzen.'},
+  ].sort((a,b) => b.score - a.score);
+}
+
+function scCol(s) { return s>=70?'var(--success)':s>=50?'var(--warn)':'var(--danger)'; }
+function scHex(s) { return s>=70?'#2d4a3e':s>=50?'#7a5c1e':'#8b3a2a'; }
+
+function analyse(nr, name, kt) {
+  document.getElementById('msg').textContent = '';
+  const d = synthData(name, kt, nr);
+  render(d, nr, DETAIL[nr] ? 'detail' : 'synth');
+  document.getElementById('out').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function render(d, nr, mode) {
+  document.getElementById('out').style.display = 'block';
+  document.getElementById('title-bar').textContent = d.n + ' · Kanton ' + d.kt;
+  document.getElementById('bfs-nr').textContent = 'BFS-Nr. ' + nr;
+  document.getElementById('dnote').textContent = mode === 'detail'
+    ? 'Detaillierte BFS-Strukturdaten (Statpop 2023 · Strukturerhebung)'
+    : 'Modellbasierte Näherung nach Gemeindegrösse – für präzise Daten Wüest Partner-Auszug empfehlen';
+
+  document.getElementById('kpis').innerHTML = [
+    {l:'Einwohner',   v:d.ew.toLocaleString('de-CH'), s:mode==='detail'?'BFS 2023':'Schätzung'},
+    {l:'Haushalte',   v:d.hh.toLocaleString('de-CH'), s:'geschätzt'},
+    {l:'Ø Haushalt',  v:d.avg.toFixed(1)+' Pers.',    s:'pro Haushalt'},
+    {l:'1–2 Pers. HH',v:d.sHH+'%',                   s:'Singles & Paare'},
+  ].map(k => `<div class="kpi"><div class="kpi-label">${k.l}</div><div class="kpi-val">${k.v}</div><div class="kpi-sub">${k.s}</div></div>`).join('');
+
+  document.getElementById('hh').innerHTML = d.hht.map(h => `
+    <div class="bar-row">
+      <div class="bar-row-top"><span>${h.l}</span><span class="pct">${h.p}%</span></div>
+      <div class="bar-bg"><div class="bar-fill" style="width:${h.p}%"></div></div>
+    </div>`).join('');
+
+  document.getElementById('atags').innerHTML = d.alt.map(a =>
+    `<span class="tag">${a.l}: ${a.p}%</span>`).join('');
+
+  if(chart) chart.destroy();
+  chart = new Chart(document.getElementById('ac'), {
+    type: 'bar',
+    data: { labels: d.alt.map(a=>a.l), datasets: [{ label: '%', data: d.alt.map(a=>a.p), backgroundColor: 'rgba(45,74,62,0.2)', borderColor: '#2d4a3e', borderWidth: 1.5 }] },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{ticks:{font:{size:11},callback:v=>v+'%'},grid:{color:'rgba(0,0,0,0.04)'}},x:{ticks:{font:{size:11},autoSkip:false,maxRotation:0},grid:{display:false}}}}
+  });
+
+  document.getElementById('zg').innerHTML = calcZG(d, nr).map(z => `
+    <div class="zg-item" style="border-left-color:${scHex(z.score)}">
+      <div style="min-width:130px;flex-shrink:0">
+        <div class="zg-name">${z.name}</div>
+        <div class="zg-score" style="color:${scHex(z.score)}">Potenzial: ${z.score}%</div>
+        <div class="zg-bar-bg"><div class="zg-bar-fill" style="width:${z.score}%;background:${scHex(z.score)}"></div></div>
+      </div>
+      <div class="zg-grund">${z.grund}</div>
+    </div>`).join('');
+}
+</script>
+</body>
+</html>
